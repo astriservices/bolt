@@ -1,0 +1,479 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin - Bolt</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <nav>
+        <a class="brand" href="/">
+            <span class="bolt-mark">ϟ</span> Bolt
+        </a>
+        <div class="nav-links">
+            <a href="/usage">Workspace</a>
+            <a href="/buy">Credits</a>
+        </div>
+    </nav>
+
+    <main class="wrap">
+        <div class="page-heading">
+            <div>
+                <span class="eyebrow">OWNER CONSOLE</span>
+                <h1>Admin panel</h1>
+                <p>Manage redeem codes, credit packages and recent tasks.</p>
+            </div>
+        </div>
+
+                
+        <section class="panel">
+            <h2>🎁 Gift credits</h2>
+
+            <form id="gift-credits-form">
+                <label for="gift-username">Recipient username</label>
+                <input
+                    id="gift-username"
+                    name="username"
+                    placeholder="Enter username"
+                    maxlength="40"
+                    required
+                >
+
+                <label for="gift-amount">Credits to gift</label>
+                <input
+                    id="gift-amount"
+                    name="credits"
+                    type="number"
+                    min="1"
+                    max="1000000"
+                    value="10"
+                    required
+                >
+
+                <button class="btn" type="submit">Gift credits</button>
+                <p id="gift-message" role="status"></p>
+            </form>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2>Recent credit gifts</h2>
+                <button
+                    class="btn secondary small"
+                    id="refresh-gifts"
+                    type="button"
+                >
+                    Refresh
+                </button>
+            </div>
+            <div id="gift-history">Loading gifts…</div>
+        </section>
+
+        <section class="panel">
+            <h2>Create redeem code</h2>
+
+            <form id="create-code-form">
+                <label for="new-code">Code</label>
+                <input
+                    id="new-code"
+                    name="code"
+                    placeholder="e.g. WELCOME10"
+                    pattern="[A-Za-z0-9_-]{3,40}"
+                    maxlength="40"
+                    required
+                >
+
+                <label for="new-credits">Credits per redemption</label>
+                <input
+                    id="new-credits"
+                    name="credits"
+                    type="number"
+                    min="1"
+                    max="1000000"
+                    value="2"
+                    required
+                >
+
+                <label for="new-limit">Global redemption limit</label>
+                <select id="new-limit" name="max_uses">
+                    <option value="1">1 person worldwide</option>
+                    <option value="10">10 people</option>
+                    <option value="100">100 people</option>
+                    <option value="unlimited" selected>Unlimited</option>
+                </select>
+
+                <label for="new-expiry">Expiry (optional)</label>
+                <input id="new-expiry" name="expires_at" type="datetime-local">
+
+                <button class="btn" type="submit">Create code</button>
+                <p id="create-message" role="status"></p>
+            </form>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2>Existing redeem codes</h2>
+                <button class="btn secondary small" id="refresh-codes" type="button">
+                    Refresh
+                </button>
+            </div>
+            <div id="redeem-codes">Loading codes…</div>
+        </section>
+
+        <section class="panel">
+            <h2>Credit packages</h2>
+            <div id="packages">Loading…</div>
+            <p class="muted">
+                Prices and package sizes are configured in backend.py.
+            </p>
+        </section>
+
+        <section class="panel">
+            <h2>Recent tasks</h2>
+            <div id="jobs">Loading…</div>
+        </section>
+
+
+
+        <section class="panel danger-zone">
+            <h2>Reset all data</h2>
+            <p class="muted">
+                Permanently deletes every user account, credit balance, task,
+                redeem code, redemption record, and credit gift.
+                Your application files and Stripe configuration will remain.
+            </p>
+
+            <button
+                class="btn danger-btn"
+                id="reset-all-data"
+                type="button"
+            >
+                Reset all data
+            </button>
+
+            <p id="reset-message" role="status" aria-live="polite"></p>
+        </section>
+
+
+
+        <div class="alert">
+            Keep automation limited to authorised and platform-approved use.
+        </div>
+    </main>
+
+    <script>
+        const codesRoot = document.querySelector("#redeem-codes");
+        const createMessage = document.querySelector("#create-message");
+        const giftForm = document.querySelector("#gift-credits-form");
+        const giftMessage = document.querySelector("#gift-message");
+        const giftHistory = document.querySelector("#gift-history");
+
+        giftForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const button = giftForm.querySelector('button[type="submit"]');
+            const username = giftForm.elements.username.value.trim();
+            const credits = Number(giftForm.elements.credits.value);
+
+            if (!username || !Number.isSafeInteger(credits) ||
+                credits < 1 || credits > 1000000) {
+                giftMessage.textContent = "Enter a valid username and credit amount.";
+                return;
+            }
+
+            button.disabled = true;
+            giftMessage.textContent = "Sending gift…";
+
+            try {
+                const response = await fetch("/api/admin/gift-credits", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, credits })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Could not gift credits.");
+                }
+
+                giftMessage.textContent =
+                    `Successfully gifted ${credits} credits to ${data.username}.`;
+
+                giftForm.elements.username.value = "";
+                await loadGiftHistory();
+            } catch (error) {
+                giftMessage.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        async function loadGiftHistory() {
+            giftHistory.textContent = "Loading gifts…";
+
+            try {
+                const response = await fetch("/api/admin/gift-history");
+
+                if (!response.ok) {
+                    throw new Error("Could not load gift history.");
+                }
+
+                const data = await response.json();
+                giftHistory.replaceChildren();
+
+                if (!data.gifts.length) {
+                    giftHistory.textContent = "No credit gifts yet.";
+                    return;
+                }
+
+                data.gifts.forEach((gift) => {
+                    const entry = document.createElement("p");
+                    entry.textContent =
+                        `${gift.created_at} · ${gift.admin_username} gifted ` +
+                        `${gift.credits} credits to ${gift.recipient_username}`;
+                    giftHistory.append(entry);
+                });
+            } catch (error) {
+                giftHistory.textContent = error.message;
+            }
+        }
+
+        document.querySelector("#refresh-gifts").addEventListener(
+            "click",
+            loadGiftHistory
+        );
+
+        loadGiftHistory();
+
+
+        async function loadCodes() {
+            codesRoot.textContent = "Loading codes…";
+
+            try {
+                const response = await fetch("/api/admin/redeem-codes");
+
+                if (!response.ok) {
+                    throw new Error(
+                        response.status === 403
+                            ? "Admin access required."
+                            : "Please log in as an admin."
+                    );
+                }
+
+                const data = await response.json();
+                codesRoot.replaceChildren();
+
+                if (!data.codes.length) {
+                    codesRoot.textContent = "No redeem codes yet.";
+                    return;
+                }
+
+                data.codes.forEach((code) => {
+                    const card = document.createElement("article");
+                    card.className = "panel";
+
+                    const heading = document.createElement("h3");
+                    heading.textContent = code.code;
+
+                    const details = document.createElement("p");
+                    details.textContent =
+                        `${code.credits} credits per use · ` +
+                        `${code.uses} / ${
+                            code.max_uses === null
+                                ? "∞"
+                                : code.max_uses
+                        } uses · ` +
+                        `${code.successful_redemptions} successful claims`;
+
+                    const expiry = document.createElement("p");
+                    expiry.textContent = code.expires_at
+                        ? `Expires: ${code.expires_at}`
+                        : "No expiry date";
+
+                    const status = document.createElement("p");
+                    status.textContent = code.enabled ? "Enabled" : "Disabled";
+
+                    const toggle = document.createElement("button");
+                    toggle.className = "btn secondary";
+                    toggle.type = "button";
+                    toggle.textContent = code.enabled ? "Disable" : "Enable";
+
+                    toggle.addEventListener("click", async () => {
+                        toggle.disabled = true;
+
+                        try {
+                            const result = await fetch(
+                                `/api/admin/redeem-codes/${code.id}`,
+                                {
+                                    method: "PATCH",
+                                    headers: {
+                                        "Content-Type": "application/json"
+                                    },
+                                    body: JSON.stringify({
+                                        enabled: !code.enabled
+                                    })
+                                }
+                            );
+
+                            const body = await result.json();
+
+                            if (!result.ok) {
+                                throw new Error(body.error || "Update failed.");
+                            }
+
+                            await loadCodes();
+                        } catch (error) {
+                            status.textContent = error.message;
+                            toggle.disabled = false;
+                        }
+                    });
+
+                    card.append(heading, details, expiry, status, toggle);
+                    codesRoot.append(card);
+                });
+            } catch (error) {
+                codesRoot.textContent = error.message;
+            }
+        }
+
+        document.querySelector("#create-code-form").addEventListener(
+            "submit",
+            async (event) => {
+                event.preventDefault();
+
+                const form = event.currentTarget;
+                const button = form.querySelector("button");
+                const values = new FormData(form);
+
+                const payload = {
+                    code: values.get("code"),
+                    credits: Number(values.get("credits")),
+                    max_uses: values.get("max_uses"),
+                    expires_at: values.get("expires_at")
+                };
+
+                button.disabled = true;
+                createMessage.textContent = "Creating code…";
+
+                try {
+                    const response = await fetch("/api/admin/redeem-codes", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Could not create code.");
+                    }
+
+                    createMessage.textContent =
+                        `Created ${payload.code.toUpperCase()} successfully.`;
+
+                    form.reset();
+                    document.querySelector("#new-credits").value = "2";
+                    document.querySelector("#new-limit").value = "unlimited";
+
+                    await loadCodes();
+                } catch (error) {
+                    createMessage.textContent = error.message;
+                } finally {
+                    button.disabled = false;
+                }
+            }
+        );
+
+        document.querySelector("#refresh-codes").addEventListener(
+            "click",
+            loadCodes
+        );
+
+        async function loadAdminData() {
+            try {
+                const response = await fetch("/api/admin");
+
+                if (!response.ok) {
+                    throw new Error("Could not load admin data.");
+                }
+
+                const data = await response.json();
+
+                document.querySelector("#packages").textContent =
+                    data.packages.map(
+                        p => `${p.name}: ${p.credits} credits — ${p.price_display}`
+                    ).join("\n");
+
+                document.querySelector("#jobs").textContent =
+                    data.jobs.length
+                        ? data.jobs.map(
+                            j => `${j.created_at} · ${j.username} · ` +
+                                `${j.target} · ${j.bots} worker(s) · ${j.status}`
+                        ).join("\n")
+                        : "No tasks yet.";
+            } catch (error) {
+                document.querySelector("#packages").textContent = error.message;
+                document.querySelector("#jobs").textContent = "";
+            }
+        }
+
+        loadCodes();
+        loadAdminData();
+
+
+
+        document.querySelector("#reset-all-data").addEventListener(
+            "click",
+            async () => {
+                if (!confirm(
+                    "WARNING: This will permanently delete ALL user accounts, " +
+                    "credits, tasks, redeem codes, redemptions, and gift history. " +
+                    "You will need to create a new admin account afterward.\n\n" +
+                    "Continue?"
+                )) {
+                    return;
+                }
+
+                if (prompt('Type RESET to confirm:') !== "RESET") {
+                    return;
+                }
+
+                const button = document.querySelector("#reset-all-data");
+                const message = document.querySelector("#reset-message");
+
+                button.disabled = true;
+                message.textContent = "Resetting database…";
+
+                try {
+                    const response = await fetch("/api/admin/reset-all-data", {
+                        method: "POST",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Database reset failed.");
+                    }
+
+                    message.textContent =
+                        "All data has been reset. You will be logged out.";
+
+                    setTimeout(() => {
+                        location.replace("/login");
+                    }, 1500);
+                } catch (error) {
+                    message.textContent = error.message;
+                    button.disabled = false;
+                }
+            }
+        );
+    </script>
+</body>
+</html>

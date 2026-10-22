@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Workspace — Bolt</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <nav>
+        <a class="brand" href="/">
+            <span class="bolt-mark">ϟ</span> Bolt
+        </a>
+
+        <div class="nav-links">
+            <a href="/usage" class="active">Workspace</a>
+            <a href="/buy">Credits</a>
+        </div>
+    </nav>
+
+    <main class="wrap">
+        <div class="page-heading">
+            <div>
+                <span class="eyebrow">WORKSPACE</span>
+
+                <div class="workspace-title">
+                    <span class="workspace-icon">▦</span>
+
+                    <div>
+                        <h1 style="margin: 5px 0">Overview</h1>
+                        <p id="welcome">Your tasks and account at a glance.</p>
+                    </div>
+                </div>
+            </div>
+
+            <a class="btn" href="/buy">+ Get credits</a>
+        </div>
+
+        <div class="dashboard-grid">
+            <section>
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Task runner</h2>
+                            <p>Follow a Scratch user with bots.</p>
+                        </div>
+
+                        <span class="pill">2 credits / bot</span>
+                    </div>
+
+                    <form id="taskForm">
+                        <label for="target">Scratch Username</label>
+                        <input
+                            id="target"
+                            maxlength="200"
+                            placeholder="e.g. griffpatch"
+                            required
+                        >
+
+                        <label for="count">Number of bots</label>
+                        <input
+                            id="count"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value="1"
+                            required
+                        >
+
+                        <p id="cost">Total cost: 2 credits</p>
+
+                        <button class="btn" type="submit">
+                            Queue task →
+                        </button>
+
+                        <p id="result" role="status"></p>
+                    </form>
+
+                    <p
+                        class="muted"
+                        style="font-size: 0.8rem; margin-top: 18px"
+                    >
+                        Demo queue only: this records a task request and does
+                        not run real bots or automate fake engagement.
+                    </p>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Recent tasks</h2>
+                            <p>Your latest workspace activity.</p>
+                        </div>
+                    </div>
+
+                    <div id="jobs" class="job-list">
+                        <div class="empty-state">
+                            Loading your task history…
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <aside>
+                <div class="balance-card">
+                    <div class="balance-label">Available credits</div>
+                    <div class="balance-number" id="balance">—</div>
+
+                    <div class="balance-note">
+                        Credits are added after Stripe confirms payment.
+                    </div>
+
+                    <a
+                        class="btn secondary"
+                        href="/buy"
+                        style="margin-top: 19px; width: 100%"
+                    >
+                        View credit packs
+                    </a>
+                </div>
+
+                <div class="panel">
+                    <div class="section-label">Account</div>
+
+                    <h2 id="account-name">Checking session…</h2>
+                    <p id="account-status">Loading account status.</p>
+
+                    <div class="alert" style="margin-top: 15px">
+                        Your account and task history are saved in the local
+                        Bolt database on this computer.
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        const $ = (selector) => document.querySelector(selector);
+
+        async function refresh() {
+            try {
+                const response = await fetch("/api/me", {
+                    cache: "no-store"
+                });
+
+                if (!response.ok) {
+                    location.href = "/login?next=/usage";
+                    return;
+                }
+
+                const data = await response.json();
+
+                $("#balance").textContent = data.credits;
+                $("#welcome").textContent =
+                    `Welcome back, ${data.username}. Here is your workspace.`;
+
+                $("#account-name").textContent = data.username;
+                $("#account-status").textContent =
+                    "Signed in · account active";
+
+                const jobsContainer = $("#jobs");
+                jobsContainer.innerHTML = "";
+
+                if (!data.jobs.length) {
+                    jobsContainer.innerHTML = `
+                        <div class="empty-state">
+                            No tasks yet. Your submitted tasks will appear here.
+                        </div>
+                    `;
+                    return;
+                }
+
+                data.jobs.forEach((job) => {
+                    const item = document.createElement("div");
+                    item.className = "job-item";
+
+                    const main = document.createElement("div");
+                    main.className = "job-main";
+
+                    const target = document.createElement("div");
+                    target.className = "job-target";
+                    target.textContent = job.target;
+
+                    const meta = document.createElement("div");
+                    meta.className = "job-meta";
+                    meta.textContent =
+                        `${job.created_at} · ${job.bots} worker(s)`;
+
+                    main.append(target, meta);
+
+                    const status = document.createElement("span");
+                    status.className = "status";
+                    status.textContent = job.status;
+
+                    item.append(main, status);
+                    jobsContainer.append(item);
+                });
+            } catch (error) {
+                console.error("Failed to refresh workspace:", error);
+            }
+        }
+
+        $("#count").addEventListener("input", (event) => {
+            const count = Math.max(
+                1,
+                Math.min(100, Number(event.target.value) || 1)
+            );
+
+            $("#cost").textContent =
+                `Total cost: ${count * 2} credits`;
+        });
+
+        $("#taskForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const result = $("#result");
+            result.textContent = "Submitting…";
+
+            try {
+                const response = await fetch("/api/jobs", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        target: $("#target").value,
+                        bots: Number($("#count").value)
+                    })
+                });
+
+                const data = await response.json();
+
+                result.textContent = response.ok
+                    ? "Task request added to the queue."
+                    : `Could not queue task: ${
+                        data.error || "Request failed"
+                    }`;
+
+                if (response.ok) {
+                    $("#target").value = "";
+                    await refresh();
+                }
+            } catch (error) {
+                console.error("Task submission failed:", error);
+                result.textContent =
+                    "Could not contact Bolt. Check that the server is running.";
+            }
+        });
+
+        // Load the workspace immediately.
+        refresh();
+
+        // Refresh job statuses and credits every 2 seconds.
+        setInterval(refresh, 2000);
+    </script>
+</body>
+</html>

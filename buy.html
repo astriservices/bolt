@@ -1,0 +1,114 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Credits - Bolt</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+
+<body>
+    <nav>
+        <a class="brand" href="/">
+            <span class="bolt-mark">ϟ</span> Bolt
+        </a>
+
+        <div class="nav-links">
+            <a href="/usage">Workspace</a>
+            <a href="/buy" class="active">Credits</a>
+        </div>
+    </nav>
+
+    <main class="wrap">
+        <div class="page-heading">
+            <div>
+                <span class="eyebrow">CREDIT STORE</span>
+                <h1>Choose your credit pack</h1>
+                <p>
+                    Secure checkout through Stripe.
+                </p>
+            </div>
+        </div>
+
+        <div class="cards" id="packages">
+            <div class="panel">Loading credit packs…</div>
+        </div>
+
+        <p id="message" role="status"></p>
+    </main>
+
+    <script>
+        fetch('/api/packages')
+            .then(r => r.json())
+            .then(packages => {
+                let root = document.querySelector('#packages');
+                root.innerHTML = '';
+
+                packages.forEach(p => {
+                    let c = document.createElement('article');
+                    c.className = 'panel package' +
+                        (p.featured ? ' featured' : '');
+
+                    let tag = document.createElement('span');
+                    tag.className = 'eyebrow';
+                    tag.textContent = p.featured
+                        ? 'MOST POPULAR'
+                        : 'CREDIT PACK';
+
+                    let h = document.createElement('h2');
+                    h.textContent = p.name;
+
+                    let amount = document.createElement('div');
+                    amount.className = 'price';
+                    amount.textContent = p.credits + ' credits';
+
+                    let price = document.createElement('p');
+                    price.className = 'pack-note';
+                    price.textContent = p.price_display + ' · one-time';
+
+                    let button = document.createElement('button');
+                    button.className = 'btn';
+                    button.textContent = 'Continue to checkout';
+
+                    button.onclick = async () => {
+                        button.disabled = true;
+                        button.textContent = 'Opening Stripe…';
+
+                        let r = await fetch('/api/checkout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                package_id: p.id
+                            })
+                        });
+
+                        let d = await r.json();
+
+                        if (r.ok) {
+                            location.href = d.url;
+                        } else {
+                            document.querySelector('#message').textContent =
+                                d.error || 'Could not start checkout';
+
+                            button.disabled = false;
+                            button.textContent = 'Try again';
+                        }
+                    };
+
+                    c.append(tag, h, amount, price, button);
+                    root.append(c);
+                });
+            })
+            .catch(() => {
+                document.querySelector('#packages').textContent =
+                    'Could not load credit packs. Check that the server is running.';
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,564 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="theme-color" content="#888888">
+    <meta name="description" content="Your Bolt workspace, account, credits and task history.">
+
+    <title>Workspace - Bolt</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+
+<body>
+    <nav>
+        <a class="brand" href="/">
+            <span class="bolt-mark">ϟ</span> Bolt
+        </a>
+
+        <div class="nav-links">
+            <a href="/usage" class="active">Workspace</a>
+            <a href="/buy">Credits</a>
+        </div>
+    </nav>
+
+    <main class="wrap">
+        <!-- Page heading -->
+        <header class="page-heading">
+            <div>
+                <span class="eyebrow">YOUR WORKSPACE</span>
+
+                <div class="workspace-title">
+                    <span class="workspace-icon" aria-hidden="true">▦</span>
+
+                    <div>
+                        <h1 style="margin: 5px 0">Overview</h1>
+                        <p id="welcome">Loading your workspace…</p>
+                    </div>
+                </div>
+            </div>
+
+            <a class="btn" href="/buy">+ Get credits</a>
+        </header>
+
+        <!-- Overview statistics -->
+        <div class="stats-grid" id="workspace-stats">
+            <section class="panel stat-card">
+                <span class="muted">Available credits</span>
+                <strong class="stat-number" id="stat-credits">—</strong>
+                <span class="muted">Ready to use</span>
+                <span class="muted" id="credit-estimate">
+                    Calculating estimate…
+                </span>
+            </section>
+
+            <section class="panel stat-card">
+                <span class="muted">Recent tasks</span>
+                <strong class="stat-number" id="stat-total">—</strong>
+                <span class="muted">Latest activity</span>
+            </section>
+
+            <section class="panel stat-card">
+                <span class="muted">Completed</span>
+                <strong class="stat-number" id="stat-completed">—</strong>
+                <span class="muted">In recent history</span>
+            </section>
+        </div>
+
+        <!-- Main dashboard -->
+        <div class="dashboard-grid">
+            <section>
+                <!-- Task queue -->
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <span class="eyebrow">AUTOMATION</span>
+                            <h2>Task runner</h2>
+                            <p>Follow a Scratch user using your credits.</p>
+                        </div>
+
+                        <span class="pill">2 credits / bot</span>
+                    </div>
+
+                    <form id="taskForm">
+                        <label for="target">Scratch username</label>
+
+                        <input
+                            id="target"
+                            name="target"
+                            type="text"
+                            maxlength="200"
+                            placeholder="e.g. griffpatch"
+                            autocomplete="off"
+                            required
+                        >
+
+                        <label for="count">Number of bots</label>
+
+                        <input
+                            id="count"
+                            name="count"
+                            type="number"
+                            min="1"
+                            max="100"
+                            value="1"
+                            required
+                        >
+
+                        <div class="cost-row">
+                            <span class="muted">Estimated cost</span>
+                            <strong id="cost">2 credits</strong>
+                        </div>
+
+                        <button class="btn" id="queue-button" type="submit">
+                            Queue task <span aria-hidden="true">→</span>
+                        </button>
+
+                        <p id="result" role="status" aria-live="polite"></p>
+                    </form>
+
+                    <div class="alert" style="margin-top: 18px">
+                        Warning: By pressing "Queue task" you agree to
+                        bots following your Scratch account.
+                    </div>
+                </div>
+
+                <!-- Recent tasks -->
+                <div class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <span class="eyebrow">ACTIVITY</span>
+                            <h2>Recent tasks</h2>
+                            <p>Your latest workspace activity.</p>
+                        </div>
+
+                        <span class="pill" id="task-count">0 tasks</span>
+                    </div>
+
+                    <div id="jobs" class="job-list" aria-live="polite">
+                        <div class="empty-state">
+                            Loading your task history…
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sidebar -->
+            <aside>
+                <div class="balance-card">
+                    <div class="balance-label">Available credits</div>
+
+                    <div class="balance-number" id="balance">—</div>
+
+                    <div class="balance-note">
+                        Credits are added after Stripe confirms payment.
+                    </div>
+
+                    <a
+                        class="btn secondary"
+                        href="/buy"
+                        style="margin-top: 19px; width: 100%"
+                    >
+                        Browse credit packs
+                    </a>
+                </div>
+
+                <!-- Account details -->
+                <div class="panel">
+                    <div class="section-label">ACCOUNT</div>
+
+                    <div class="account-heading">
+                        <div class="account-avatar" aria-hidden="true">ϟ</div>
+
+                        <div>
+                            <h2 id="account-name">Loading account…</h2>
+                            <p id="account-status" class="muted">
+                                Checking session
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="alert" style="margin-top: 16px">
+                        Your account and task history are stored in the
+                        Bolt database configured for this installation.
+                    </div>
+
+                    <a
+                        class="btn secondary"
+                        href="/buy"
+                        style="width: 100%; margin-top: 16px"
+                    >
+                        Manage credits
+                    </a>
+                </div>
+
+                <!-- Danger zone -->
+                <div class="panel danger-zone">
+                    <div class="section-label">ACCOUNT SETTINGS</div>
+
+                    <h2>Delete account</h2>
+
+                    <p class="muted">
+                        Permanently delete your Bolt account, credits and
+                        locally stored task history. This cannot be undone.
+                    </p>
+
+                    <button
+                        class="btn danger-btn"
+                        id="delete-account-btn"
+                        type="button"
+                    >
+                        Delete my account
+                    </button>
+
+                    <p
+                        id="delete-account-message"
+                        role="status"
+                        aria-live="polite"
+                    ></p>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="workspace-footer muted">
+            <span>Bolt Workspace</span>
+            <span>Account · Credits · Activity</span>
+        </footer>
+    </main>
+
+    <style>
+        /*
+         * These additions use neutral grayscale colors.
+         * The existing stylesheet remains responsible for the main theme.
+         */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .stat-number {
+            font-size: 1.9rem;
+            line-height: 1.2;
+            font-weight: 700;
+            letter-spacing: -0.04em;
+        }
+
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .account-heading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .account-heading h2 {
+            overflow-wrap: anywhere;
+            margin: 0 0 4px;
+        }
+
+        .account-heading p {
+            margin: 0;
+        }
+
+        .account-avatar {
+            display: grid;
+            place-items: center;
+            flex: 0 0 44px;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid var(--border, rgba(128, 128, 128, .25));
+            background: linear-gradient(
+                145deg,
+                rgba(150, 150, 150, .2),
+                rgba(128, 128, 128, .04)
+            );
+            font-size: 1.5rem;
+        }
+
+        .danger-zone {
+            border: 1px solid rgba(160, 80, 80, .25);
+            background: linear-gradient(
+                145deg,
+                rgba(140, 140, 140, .08),
+                rgba(128, 128, 128, .025)
+            );
+        }
+
+        .danger-btn {
+            width: 100%;
+            border: 1px solid rgba(180, 70, 70, .35);
+            background: rgba(180, 70, 70, .09);
+            color: inherit;
+        }
+
+        .danger-btn:hover {
+            background: rgba(180, 70, 70, .17);
+        }
+
+        .danger-btn:disabled {
+            opacity: .55;
+            cursor: wait;
+        }
+
+        #result,
+        #delete-account-message {
+            overflow-wrap: anywhere;
+        }
+
+        .workspace-footer {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 24px 0;
+            font-size: .82rem;
+        }
+
+        @media (max-width: 760px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .workspace-footer {
+                flex-direction: column;
+            }
+        }
+    </style>
+
+    <script>
+        const $ = (selector) => document.querySelector(selector);
+
+        let refreshInProgress = false;
+
+        async function refresh() {
+            if (refreshInProgress) return;
+
+            refreshInProgress = true;
+
+            try {
+                const response = await fetch("/api/me", {
+                    cache: "no-store",
+                    credentials: "same-origin"
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    location.replace("/login?next=/usage");
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error("Could not load your workspace.");
+                }
+
+                const data = await response.json();
+                const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+
+                $("#balance").textContent = data.credits;
+                $("#stat-credits").textContent = data.credits;
+                const credits = Number(data.credits);
+                const estimate = $("#credit-estimate");
+
+                estimate.textContent =
+                    Number.isFinite(credits) && credits >= 0
+                        ? `≈ ${Math.floor(credits / 2)} bots at 2 credits each`
+                        : "Estimate unavailable";
+                $("#stat-total").textContent = jobs.length;
+                $("#stat-completed").textContent =
+                    jobs.filter(job => job.status === "completed").length;
+
+                $("#welcome").textContent =
+                    `Welcome back, ${data.username}. Here's your workspace.`;
+
+                $("#account-name").textContent = data.username;
+                $("#account-status").textContent = data.is_admin
+                    ? "Signed in · administrator"
+                    : "Signed in · account active";
+
+                $("#task-count").textContent =
+                    `${jobs.length} ${jobs.length === 1 ? "task" : "tasks"}`;
+
+                renderJobs(jobs);
+            } catch (error) {
+                console.error("Workspace refresh failed:", error);
+                $("#welcome").textContent =
+                    "Couldn't refresh your workspace. Retrying shortly.";
+            } finally {
+                refreshInProgress = false;
+            }
+        }
+
+        function renderJobs(jobs) {
+            const container = $("#jobs");
+            container.replaceChildren();
+
+            if (jobs.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "empty-state";
+                empty.textContent =
+                    "No tasks yet. Your submitted requests will appear here.";
+                container.append(empty);
+                return;
+            }
+
+            jobs.forEach((job) => {
+                const item = document.createElement("div");
+                item.className = "job-item";
+
+                const main = document.createElement("div");
+                main.className = "job-main";
+
+                const target = document.createElement("div");
+                target.className = "job-target";
+                target.textContent = job.target;
+
+                const meta = document.createElement("div");
+                meta.className = "job-meta";
+                meta.textContent =
+                    `${job.created_at} · ${job.bots} worker(s)`;
+
+                main.append(target, meta);
+
+                const status = document.createElement("span");
+                status.className = "status";
+                status.textContent = job.status;
+
+                item.append(main, status);
+                container.append(item);
+            });
+        }
+
+        function updateCost() {
+            const raw = Number($("#count").value);
+            const count = Number.isFinite(raw)
+                ? Math.max(1, Math.min(100, raw))
+                : 1;
+
+            $("#cost").textContent = `${count * 2} credits`;
+        }
+
+        $("#count").addEventListener("input", updateCost);
+
+        $("#taskForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const button = $("#queue-button");
+            const result = $("#result");
+            const target = $("#target").value.trim();
+            const bots = Number($("#count").value);
+
+            if (!target) {
+                result.textContent = "Enter a username first.";
+                return;
+            }
+
+            if (!Number.isInteger(bots) || bots < 1 || bots > 25) {
+                result.textContent =
+                    "Choose between 1 and 25 workers.";
+                return;
+            }
+
+            button.disabled = true;
+            result.textContent = "Submitting task request…";
+
+            try {
+                const response = await fetch("/api/jobs", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                        target,
+                        bots
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error || "Could not queue the task."
+                    );
+                }
+
+                result.textContent =
+                    data.message || "Task request added to the demo queue.";
+
+                $("#target").value = "";
+                await refresh();
+            } catch (error) {
+                result.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        $("#delete-account-btn").addEventListener("click", async () => {
+            const confirmed = confirm(
+                "Permanently delete your Bolt account, credits, and " +
+                "local task history? This action cannot be undone."
+            );
+
+            if (!confirmed) return;
+
+            const button = $("#delete-account-btn");
+            const message = $("#delete-account-message");
+
+            button.disabled = true;
+            message.textContent = "Deleting account…";
+
+            try {
+                const response = await fetch("/api/account", {
+                    method: "DELETE",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error || "Account deletion failed."
+                    );
+                }
+
+                message.textContent = "Account deleted. Redirecting…";
+                location.replace("/");
+            } catch (error) {
+                message.textContent = error.message;
+                button.disabled = false;
+            }
+        });
+
+        updateCost();
+        refresh();
+
+        // Avoid overlapping refresh requests.
+        setInterval(refresh, 5000);
+    </script>
+</body>
+</html>

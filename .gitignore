@@ -1,0 +1,6 @@
+.env
+.venv/
+modules/
+__pycache__/
+bolt.sqlite3
+.bolt_session_secret

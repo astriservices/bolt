@@ -1,0 +1,96 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signup - Bolt</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <nav>
+        <a class="brand" href="/">
+            <span class="bolt-mark">ϟ</span> Bolt
+        </a>
+        <div class="nav-links">
+            <a href="/login">Log in</a>
+        </div>
+    </nav>
+
+    <main class="auth panel">
+        <section id="signup-section">
+            <span class="eyebrow">GET STARTED</span>
+            <h1>Create account</h1>
+            <p>Your workspace starts here.</p>
+
+            <form id="signup-form">
+                <label for="username">Username</label>
+                <input
+                    id="username"
+                    name="username"
+                    required
+                    minlength="2"
+                    maxlength="30"
+                    autocomplete="username"
+                >
+
+                <label for="password">Password (10+ characters)</label>
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    minlength="10"
+                    autocomplete="new-password"
+                >
+
+                <button class="btn" type="submit">Create account</button>
+                <p id="signup-message" role="status"></p>
+            </form>
+
+            <p class="muted">
+                This creates a Bolt account; it does not verify ownership
+                of a Scratch account.
+            </p>
+        </section>
+    </main>
+
+    <script>
+        const signupForm = document.querySelector("#signup-form");
+        const signupMessage = document.querySelector("#signup-message");
+
+        signupForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const button = signupForm.querySelector("button");
+            button.disabled = true;
+            signupMessage.textContent = "Creating your account…";
+
+            try {
+                const formData = new FormData(signupForm);
+                const response = await fetch("/api/signup", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(Object.fromEntries(formData))
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    signupMessage.textContent =
+                        data.error || "Signup failed.";
+                    return;
+                }
+
+                window.location.href = "/redeem";
+            } catch {
+                signupMessage.textContent =
+                    "Could not connect to Bolt. Please try again.";
+            } finally {
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Redeem - Bolt</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+</head>
+<body>
+    <nav>
+        <a class="brand" href="/">
+            <span class="bolt-mark">ϟ</span> Bolt
+        </a>
+        <div class="nav-links">
+            <a href="/usage">Workspace</a>
+        </div>
+    </nav>
+
+    <main class="auth panel">
+        <section id="welcome-section" hidden>
+            <span class="eyebrow">WELCOME TO BOLT</span>
+            <h1>Your first credits await.</h1>
+            <p>
+                Enter your signup reward code below to claim your free credits.
+            </p>
+
+            <div class="panel">
+                <span class="eyebrow">SIGNUP REWARD</span>
+                <h2>NEW25</h2>
+                <p>Redeem for 2 free credits.</p>
+            </div>
+        </section>
+
+        <section id="normal-section" hidden>
+            <span class="eyebrow">YOUR ACCOUNT</span>
+            <h1>Redeem a code</h1>
+            <p>Enter a redeem code below to claim your credits.</p>
+        </section>
+
+        <form id="redeem-form">
+            <label for="redeem-code">Redeem code</label>
+            <input
+                id="redeem-code"
+                name="code"
+                maxlength="40"
+                required
+                autocomplete="off"
+            >
+
+            <button class="btn" type="submit">Claim free credits</button>
+            <p id="redeem-message" role="status"></p>
+        </form>
+
+        <a class="btn secondary" href="/usage">
+            Continue to workspace
+        </a>
+    </main>
+
+    <script>
+        const form = document.querySelector("#redeem-form");
+        const input = document.querySelector("#redeem-code");
+        const button = form.querySelector("button");
+        const message = document.querySelector("#redeem-message");
+
+        async function setupRedeemPage() {
+            try {
+                const response = await fetch("/api/redeem/status");
+                if (!response.ok) {
+                    message.textContent = "Could not check redemption status.";
+                    return;
+                }
+
+                const data = await response.json();
+
+                document.querySelector("#welcome-section").hidden =
+                    data.new25_redeemed;
+                document.querySelector("#normal-section").hidden =
+                    !data.new25_redeemed;
+
+                input.value = data.new25_redeemed ? "" : "NEW25";
+                button.textContent = data.new25_redeemed
+                    ? "Redeem code"
+                    : "Claim free credits";
+            } catch {
+                message.textContent = "Could not connect to Bolt.";
+            }
+        }
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            button.disabled = true;
+            message.textContent = "Checking your code…";
+
+            try {
+                const response = await fetch("/api/redeem", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code: input.value })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    message.textContent =
+                        data.error || data.message ||
+                        "Could not redeem this code.";
+                    return;
+                }
+
+                message.textContent =
+                    data.message ||
+                    `Success! You received ${data.credits} credits.`;
+
+                // Refresh the welcome/redeemed state without changing the layout.
+                await setupRedeemPage();
+                input.value = "";
+            } catch {
+                message.textContent =
+                    "Could not connect to Bolt. Please try again.";
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        setupRedeemPage();
+    </script>
+</body>
+</html>
